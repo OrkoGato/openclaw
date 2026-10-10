@@ -50,7 +50,6 @@ import {
 
 export type AnthropicStreamBlock = AssistantMessage["content"][number] & {
   index?: number;
-  partialJson?: string;
 };
 
 /** One Messages protocol reducer; entry points retain their established preview/replay contracts. */

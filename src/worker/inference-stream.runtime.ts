@@ -32,10 +32,6 @@ import {
 } from "./transcript-message.js";
 import type { WorkerInferenceProxyClient } from "./worker-rpc-inference-client.js";
 
-type StreamingToolCall = ToolCall & {
-  partialJson: string;
-};
-
 type WorkerInferenceStreamAdapterOptions = {
   client: WorkerInferenceProxyClient;
   sessionId: string;
@@ -160,7 +156,7 @@ function processInferenceEvent(
         name: event.toolName,
         arguments: {},
         partialJson: "",
-      } satisfies StreamingToolCall;
+      } satisfies ToolCall;
       partial.content[event.contentIndex] = content;
       toolArgumentPreviewSchedules.set(event.contentIndex, createToolArgumentPreviewSchedule());
       return { type: "toolcall_start", contentIndex: event.contentIndex, partial };
@@ -176,15 +172,15 @@ function processInferenceEvent(
           `worker inference tool ${event.type === "toolcall_delta" ? "delta" : "end"} has no active tool call`,
         );
       }
-      const streaming = content as StreamingToolCall;
       if (event.type === "toolcall_delta") {
-        streaming.partialJson += event.delta;
+        const partialJson = (content.partialJson ?? "") + event.delta;
+        content.partialJson = partialJson;
         const previewSchedule = toolArgumentPreviewSchedules.get(event.contentIndex);
         if (!previewSchedule) {
           throw new Error("worker inference tool delta has no preview schedule");
         }
-        if (previewSchedule(streaming.partialJson.length)) {
-          content.arguments = parseStreamingJson(streaming.partialJson);
+        if (previewSchedule(partialJson.length)) {
+          content.arguments = parseStreamingJson(partialJson);
         }
         return {
           type: "toolcall_delta",
@@ -193,9 +189,9 @@ function processInferenceEvent(
           partial,
         };
       }
-      content.arguments = parseTerminalToolCallArguments(streaming.partialJson);
+      content.arguments = parseTerminalToolCallArguments(content.partialJson);
       toolArgumentPreviewSchedules.delete(event.contentIndex);
-      delete (content as Partial<StreamingToolCall>).partialJson;
+      delete content.partialJson;
       return { type: "toolcall_end", contentIndex: event.contentIndex, toolCall: content, partial };
     }
   }
