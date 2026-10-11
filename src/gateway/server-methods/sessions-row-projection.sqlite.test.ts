@@ -169,7 +169,7 @@ describe("resident session rows", () => {
     });
   });
 
-  it("reuses committed dirty-row facts without rereading either store", async () => {
+  it("refreshes only the dirty identity without unrelated or main-thread reads", async () => {
     await withOpenClawTestState({ scenario: "minimal" }, async () => {
       const cfg = await seedSessions();
       const context = requestContext(cfg);
@@ -216,7 +216,9 @@ describe("resident session rows", () => {
         expect(
           projection.describe({ agentId: "work", key: "agent:work:active" })?.materialized,
         ).toBe(untouched.materialized);
-        expect(workerKeys).not.toHaveBeenCalled();
+        for (const [keys] of workerKeys.mock.calls) {
+          expect(keys).toEqual([key]);
+        }
         expect(hostSql.calls.flatMap((call) => call.mock.calls)).toEqual([]);
         workerKeys.mockClear();
         await listSessions({ context, client, request });
