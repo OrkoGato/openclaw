@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Select Xcode 26 toolchain
-        uses: maxim-lobanov/setup-xcode@d58261d64b9fdc674f7bb0b8b6be7df5bb3c6f57 # v1.6.0
+        uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
