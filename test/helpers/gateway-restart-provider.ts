@@ -9,6 +9,8 @@ import { runQaGatewayFixture } from "./qa-gateway-cleanup.js";
 
 export async function startGatewayRestartProvider(signal: AbortSignal) {
   const ready = createDeferred();
+  const pluginStopStarted = createDeferred();
+  const pluginStopRelease = createDeferred();
   void ready.promise.catch(() => {});
   const held = new Set<number>();
   const issuedExecs = new Set<number>();
@@ -16,6 +18,13 @@ export async function startGatewayRestartProvider(signal: AbortSignal) {
   let ordinal = 0;
 
   async function respond(request: IncomingMessage, response: ServerResponse) {
+    if (request.url === "/plugin-stop" && request.method === "POST") {
+      pluginStopStarted.resolve();
+      await pluginStopRelease.promise;
+      response.writeHead(204);
+      response.end();
+      return;
+    }
     const chunks: Buffer[] = [];
     for await (const chunk of request) {
       chunks.push(Buffer.from(chunk));
@@ -154,7 +163,11 @@ export async function startGatewayRestartProvider(signal: AbortSignal) {
   return {
     baseUrl: `http://127.0.0.1:${reservation.claim.port}/v1`,
     ready: ready.promise,
+    pluginStopUrl: `http://127.0.0.1:${reservation.claim.port}/plugin-stop`,
+    pluginStopStarted: pluginStopStarted.promise,
+    releasePluginStop: () => pluginStopRelease.resolve(),
     async close() {
+      pluginStopRelease.resolve();
       await runQaGatewayFixture(
         async () => {
           for (const [pid, startedAt] of processes) {

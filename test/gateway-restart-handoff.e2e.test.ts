@@ -25,6 +25,7 @@ const NATIVE_STOP_MS = 46_000;
 const APPLICATION_STOP_MS = 41_000;
 const SERVICE_ID = "restart-handoff-pending-service";
 const SERVICE_STOP = "RESTART_HANDOFF_SERVICE_STOP_ENTERED";
+const SERVICE_STOP_FINISHED = "RESTART_HANDOFF_SERVICE_STOP_FINISHED";
 const tempDirs = useAutoCleanupTempDirTracker(afterEach);
 
 function journal(logs: string) {
@@ -43,7 +44,7 @@ function journal(logs: string) {
 
 // The real CLI process, model transport, exec subprocesses, and native deadline belong in E2E.
 it.skipIf(process.platform !== "linux")(
-  "hands six pending runs and two background execs to a fresh Gateway within five seconds of its receipt despite unfinished plugin cleanup",
+  "hands six pending runs and two background execs to a fresh Gateway within five seconds of its receipt after joining plugin cleanup",
   { timeout: 180_000 },
   async ({ signal }) => {
     const provider = await startGatewayRestartProvider(signal);
@@ -68,9 +69,11 @@ it.skipIf(process.platform !== "linux")(
           register(api) {
             api.registerService({
               id: ${JSON.stringify(SERVICE_ID)}, start() {},
-              stop() {
+              async stop() {
                 api.logger.info(${JSON.stringify(SERVICE_STOP)});
-                return new Promise(() => {});
+                const response = await fetch(${JSON.stringify(provider.pluginStopUrl)}, { method: "POST" });
+                if (!response.ok) throw new Error("Plugin stop barrier refused cleanup");
+                api.logger.info(${JSON.stringify(SERVICE_STOP_FINISHED)});
               }
             });
           }
@@ -96,7 +99,6 @@ it.skipIf(process.platform !== "linux")(
               defaults: {
                 maxConcurrent: 12,
                 timeoutSeconds: 3600,
-                heartbeat: { every: "0m" },
                 model: { primary: modelRef },
                 models: {
                   [modelRef]: {
@@ -233,6 +235,16 @@ it.skipIf(process.platform !== "linux")(
         // Enforce the emulated native supervisor deadline independently of Gateway's own timer.
         nativeDeadline = setTimeout(() => child.kill("SIGKILL"), NATIVE_STOP_MS);
         expect(child.kill("SIGTERM")).toBe(true);
+        await withinTest(
+          awaitGateBeforeSettlement(
+            provider.pluginStopStarted,
+            closed,
+            "Gateway exited before joining plugin cleanup",
+          ),
+          signal,
+        );
+        expect(exitedAt, instance.logs()).toBe(Number.POSITIVE_INFINITY);
+        provider.releasePluginStop();
         const exit = await withinTest(closed, signal);
         clearTimeout(nativeDeadline);
         const rows = journal(instance.logs()).filter(
@@ -253,6 +265,7 @@ it.skipIf(process.platform !== "linux")(
         );
         const deadline = rows.find((row) => row.message.includes("shutdown deadline reached"));
         const serviceStop = rows.find((row) => row.message.includes(SERVICE_STOP));
+        const serviceStopFinished = rows.find((row) => row.message.includes(SERVICE_STOP_FINISHED));
         console.info(
           JSON.stringify({
             proof: "gateway-restart-handoff",
@@ -269,7 +282,8 @@ it.skipIf(process.platform !== "linux")(
             exitAfterFirstReceiptMs: firstReceipt ? exitedAt - firstReceipt.at : null,
             applicationBudgetMs: APPLICATION_STOP_MS,
             shutdownDeadlineAtMs: deadline?.at,
-            pendingServiceStopAtMs: serviceStop?.at,
+            serviceStopAtMs: serviceStop?.at,
+            serviceStopFinishedAtMs: serviceStopFinished?.at,
             acceptedRuns: runIds.length,
             confirmedRunReleases: runIds.filter((runId) =>
               rows.some((row) =>
@@ -314,7 +328,10 @@ it.skipIf(process.platform !== "linux")(
         }
         expect(exitedAt - receipt!.at, instance.logs()).toBeLessThanOrEqual(5_000);
         expect(deadline, instance.logs()).toBeUndefined();
-        expect(serviceStop, instance.logs()).toBeUndefined();
+        expect(serviceStop, instance.logs()).toBeDefined();
+        expect(serviceStopFinished, instance.logs()).toBeDefined();
+        expect(serviceStopFinished!.at).toBeGreaterThanOrEqual(serviceStop!.at);
+        expect(serviceStopFinished!.at).toBeLessThanOrEqual(exitedAt);
         const shared = openNodeSqliteDatabase(
           instance.state.statePath("state", "openclaw.sqlite"),
           { readOnly: true },
@@ -452,6 +469,7 @@ it.skipIf(process.platform !== "linux")(
       },
       () => {
         clearTimeout(nativeDeadline);
+        provider.releasePluginStop();
       },
       () => client?.stopAndWait({ timeoutMs: 1000 }),
       () => instance?.cleanup(),

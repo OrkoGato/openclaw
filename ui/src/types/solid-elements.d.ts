@@ -2,6 +2,7 @@ import type WaDropdownItem from "@awesome.me/webawesome/dist/components/dropdown
 import type WaDropdown from "@awesome.me/webawesome/dist/components/dropdown/dropdown.js";
 import type WaPopover from "@awesome.me/webawesome/dist/components/popover/popover.js";
 import type { JSX } from "@solidjs/web";
+import type { ApplicationGateway } from "../app/gateway.ts";
 import type { MascotMood } from "../components/mascot-pose.ts";
 export type { JSX } from "@solidjs/web";
 
@@ -11,6 +12,10 @@ type LegacyAttributes<T extends HTMLElement> = JSX.HTMLAttributes<T> & JSX.Prope
 declare module "@solidjs/web" {
   namespace JSX {
     interface IntrinsicElements {
+      "openclaw-cron-scratch-editor": HTMLAttributes<HTMLElement> & {
+        "prop:jobId": string;
+        "prop:gateway": ApplicationGateway | null;
+      };
       "openclaw-tooltip": HTMLAttributes<HTMLElementTagNameMap["openclaw-tooltip"]> & {
         "prop:content"?: string;
         placement?: HTMLElementTagNameMap["openclaw-tooltip"]["placement"];

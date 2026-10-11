@@ -14,6 +14,10 @@ import type { OpenClawConfig } from "../../../../src/config/types.openclaw.js";
 import { executeSqliteQuerySync, getNodeSqliteKysely } from "../../../../src/infra/kysely-sync.js";
 import type { DB } from "../../../../src/state/openclaw-state-db.generated.js";
 import { openExistingOpenClawStateDatabaseReadOnly } from "../../../../src/state/openclaw-state-db.js";
+import {
+  buildClaudeModelPickerFixture,
+  CLAUDE_MODEL_DISCOVERY_ARGS,
+} from "../../../helpers/claude-model-picker-fixture.js";
 import { withinTest, withTestTimeout } from "../../../helpers/promise.js";
 import { stopQaGatewayFixture } from "../../../helpers/qa-gateway-cleanup.js";
 
@@ -769,6 +773,8 @@ test("lists native CLI-bound models through Telegram polling and provider callba
   await withTempDir("openclaw-telegram-native-model-picker-", async (fixtureRoot) => {
     const cliPath = path.join(fixtureRoot, process.platform === "win32" ? "claude.cjs" : "claude");
     const authCallsPath = path.join(fixtureRoot, "native-auth-calls.jsonl");
+    const inputsPath = path.join(fixtureRoot, "native-inputs.jsonl");
+
     if (process.platform === "win32") {
       await createWindowsCmdShimFixture({
         shimPath: path.join(fixtureRoot, "claude.cmd"),
@@ -778,13 +784,12 @@ test("lists native CLI-bound models through Telegram polling and provider callba
     }
     await fs.writeFile(
       cliPath,
-      `#!${process.execPath}
-const fs = require("node:fs");
-const argv = process.argv.slice(2);
-fs.appendFileSync(${JSON.stringify(authCallsPath)}, JSON.stringify(argv) + "\\n");
-if (JSON.stringify(argv) !== JSON.stringify(["auth", "status", "--json"])) process.exit(1);
-process.stdout.write(JSON.stringify({ loggedIn: true, authMethod: "claude.ai" }));
-`,
+      buildClaudeModelPickerFixture({
+        nodePath: process.execPath,
+        authCallsPath,
+        inputsPath,
+        modelIds: [primaryRef.slice("anthropic/".length), boundRef.slice("anthropic/".length)],
+      }),
       { mode: 0o755 },
     );
     await withServer(
@@ -920,8 +925,26 @@ process.stdout.write(JSON.stringify({ loggedIn: true, authMethod: "claude.ai" })
             ]),
           });
           expect(
-            cliCalls.every((args) => JSON.stringify(args) === '["auth","status","--json"]'),
+            cliCalls.every((args) =>
+              [
+                JSON.stringify(["auth", "status", "--json"]),
+                JSON.stringify(CLAUDE_MODEL_DISCOVERY_ARGS),
+              ].includes(JSON.stringify(args)),
+            ),
           ).toBe(true);
+          expect(cliCalls).toContainEqual(CLAUDE_MODEL_DISCOVERY_ARGS);
+          const inputs = (await fs.readFile(inputsPath, "utf8"))
+            .trim()
+            .split("\n")
+            .map((line) => JSON.parse(line));
+          expect(inputs.length).toBeGreaterThan(0);
+          for (const input of inputs) {
+            expect(input).toEqual({
+              type: "control_request",
+              request_id: expect.any(String),
+              request: { subtype: "initialize", hooks: {} },
+            });
+          }
           expect(providerRequests).toBe(0);
         } finally {
           await stopQaGatewayFixture(gatewayOwner);

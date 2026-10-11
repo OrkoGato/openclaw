@@ -23,6 +23,7 @@ export function createCronViewJob(id: string, overrides: Partial<CronJob> = {}):
 
 export function createCronViewProps(overrides: Partial<CronProps> = {}): CronProps {
   return {
+    gateway: null,
     loading: false,
     hasLoaded: true,
     listError: null,
@@ -46,7 +47,6 @@ export function createCronViewProps(overrides: Partial<CronProps> = {}): CronPro
     error: null,
     busy: false,
     form: { ...DEFAULT_CRON_FORM },
-    heartbeatScratch: "",
     fieldErrors: {},
     canSubmit: true,
     editingJob: null,

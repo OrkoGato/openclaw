@@ -224,7 +224,8 @@ export function readPluginSdkSurfaceBudgets(env: NodeJS.ProcessEnv = process.env
       // +5: approved sync-to-async replacements: inspectConversationBinding,
       // resolveCommandAuthorization, createApproverRestrictedNativeApprovalCapability,
       // createChannelApprovalNativeRuntimeAdapter, and createLazyChannelApprovalNativeRuntimeAdapter.
-      3661,
+      // -9: retired heartbeat reply and harness exports.
+      3652,
       env,
     ),
     publicFunctionExports: readPluginSdkSurfaceBudgetEnv(
@@ -242,7 +243,8 @@ export function readPluginSdkSurfaceBudgets(env: NodeJS.ProcessEnv = process.env
       // +4: the same four CLI state-owner and transport functions.
       // +1: runWithLocalStateMutationOwner shares the existing transport authority scope.
       // +5: the five awaited inspection, authorization, and approval factory replacements above.
-      2127,
+      // -4: retired heartbeat reply and harness functions.
+      2123,
       env,
     ),
     publicDeprecatedExports: readPluginSdkSurfaceBudgetEnv(
