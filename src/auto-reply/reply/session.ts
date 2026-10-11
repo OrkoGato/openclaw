@@ -8,6 +8,7 @@ import { resolveAgentWorkspaceDir, resolveSessionAgentId } from "../../agents/ag
 import { clearBootstrapSnapshotOnSessionBoundary } from "../../agents/bootstrap-cache.js";
 import { clearAllCliSessions } from "../../agents/cli-session.js";
 import { resetRegisteredAgentHarnessSessions } from "../../agents/harness/registry.js";
+import { captureAgentWorkspaceReadiness } from "../../agents/workspace-readiness.js";
 import { cleanupBrowserSessionsForLifecycleEnd } from "../../browser-lifecycle-cleanup.js";
 import { normalizeChatType } from "../../channels/chat-type.js";
 import { readConversationBindingRouteFacts } from "../../channels/conversation-binding-route-facts.js";
@@ -486,6 +487,7 @@ async function initSessionStateAttemptLocked(
     sessionKey,
   });
   const archivedSessionError = resolveSessionWorkStartError(sessionKey, entry, {
+    allowPendingWorkspace: captureAgentWorkspaceReadiness(sessionKey) ? true : undefined,
     allowRestartTombstoneReplacement: restartTombstoneReset || restartTombstoneParentFork,
     providerReviewAcknowledgment: params.providerReviewAcknowledgment,
   });

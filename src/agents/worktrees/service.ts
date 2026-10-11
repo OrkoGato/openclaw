@@ -205,16 +205,22 @@ export class ManagedWorktreeService {
     return withWorktreePreparationTiming("managed", () =>
       withWorktreeRunEnd(this.env, async () => {
         params.signal?.throwIfAborted();
-        const repository = await resolveRepository(params.repoRoot);
+        const repository = await timeWorktreePreparationPhase("repository", () =>
+          resolveRepository(params.repoRoot),
+        );
         return await withWorktreeBasePreparation(repository, async (prepareBase) =>
           createWithWorktreeAllocation(
             { ...params, env: this.env },
             async (guard, publication) =>
               await withWorktreeSources(this.env, async (retainRepository) => {
-                const retainSources = await retainRepository({ ...params, ...guard, repository });
+                const retainSources = await timeWorktreePreparationPhase("source", () =>
+                  retainRepository({ ...params, ...guard, repository }),
+                );
                 const owned = { ...params, ...guard, retainSources, prepareBase };
-                const creation = await this.withAllocationLease(owned, (allocation) =>
-                  this.reserveForOwner(owned, allocation, repository, publication),
+                const creation = await timeWorktreePreparationPhase("reserve", () =>
+                  this.withAllocationLease(owned, (allocation) =>
+                    this.reserveForOwner(owned, allocation, repository, publication),
+                  ),
                 );
                 return typeof creation === "function" ? await creation() : creation;
               }),
@@ -508,28 +514,28 @@ export class ManagedWorktreeService {
         prepared = true;
         return created;
       });
-      const provisionedPaths = await this.completeRepositoryWorktreeSetup(
-        params,
-        repository,
-        materialized,
+      const provisionedPaths = await timeWorktreePreparationPhase("provision", () =>
+        this.completeRepositoryWorktreeSetup(params, repository, materialized),
       );
-      return await this.withAllocationLease(params, (allocation) =>
-        withWorktreeSource({ ...params, ...allocation }, async (current) => {
-          current.signal?.throwIfAborted();
-          current.commitGuard?.();
-          await requireAllocationSpace(current, this.env, materialized.worktreePath, repository);
-          current.commitGuard();
-          const record = { ...pending, baseRef: materialized.recordBase };
-          await insertRegistryWorktree(this.env, record, {
-            pendingId: pending.id,
-            provisionedPaths,
-            workerAuthority: current.workerAuthority,
-          });
-          publication.pending = undefined;
-          publication.record = { ...record };
-          current.commitGuard();
-          return { record, materialized: true };
-        }),
+      return await timeWorktreePreparationPhase("publish", () =>
+        this.withAllocationLease(params, (allocation) =>
+          withWorktreeSource({ ...params, ...allocation }, async (current) => {
+            current.signal?.throwIfAborted();
+            current.commitGuard?.();
+            await requireAllocationSpace(current, this.env, materialized.worktreePath, repository);
+            current.commitGuard();
+            const record = { ...pending, baseRef: materialized.recordBase };
+            await insertRegistryWorktree(this.env, record, {
+              pendingId: pending.id,
+              provisionedPaths,
+              workerAuthority: current.workerAuthority,
+            });
+            publication.pending = undefined;
+            publication.record = { ...record };
+            current.commitGuard();
+            return { record, materialized: true };
+          }),
+        ),
       );
     } catch (error) {
       const failures = [error];
@@ -588,18 +594,22 @@ export class ManagedWorktreeService {
     params.commitGuard?.();
     await requireAllocationSpace(params, this.env, worktreePath, repository);
     params.commitGuard?.();
-    const base = await resolveWorktreeCreationBase(repository.repoRoot, params);
+    const base = await timeWorktreePreparationPhase("base", () =>
+      resolveWorktreeCreationBase(repository.repoRoot, params),
+    );
     let gitBytes = 0;
     const provisionedBytes =
       params.provisionIgnoredFiles === false
         ? 0
         : (
-            await runGitWorkerOperation(
-              {
-                type: "worktree.provisioning-inspection",
-                input: { sourceRoot: repository.sourceRoot },
-              },
-              { signal: params.signal, assertCurrent: params.commitGuard },
+            await timeWorktreePreparationPhase("inspect", () =>
+              runGitWorkerOperation(
+                {
+                  type: "worktree.provisioning-inspection",
+                  input: { sourceRoot: repository.sourceRoot },
+                },
+                { signal: params.signal, assertCurrent: params.commitGuard },
+              ),
             )
           ).estimatedBytes;
     const setupStat =
@@ -609,6 +619,12 @@ export class ManagedWorktreeService {
             .stat(path.join(repository.sourceRoot, ".openclaw", "worktree-setup.sh"))
             .catch(() => undefined);
     const runRepositorySetup = setupStat?.isFile() === true && (setupStat.mode & 0o111) !== 0;
+    const onPromptReady =
+      params.onPromptReady &&
+      !runRepositorySetup &&
+      !(await worktreePathExists(path.join(repository.sourceRoot, ".worktreeinclude")))
+        ? params.onPromptReady
+        : undefined;
     const setupBytes = runRepositorySetup
       ? Math.max(
           WORKTREE_SETUP_HEADROOM_BYTES,
@@ -644,6 +660,18 @@ export class ManagedWorktreeService {
         branch,
         base: sourceProfile?.commit ?? gitBase,
         sourceProfile,
+        ...(onPromptReady
+          ? {
+              onPromptReady: async (commit: string) =>
+                onPromptReady({
+                  id: publication.id,
+                  path: worktreePath,
+                  branch,
+                  repoRoot: repository.repoRoot,
+                  commit,
+                }),
+            }
+          : {}),
         prepareCommit: async (commit) => {
           const guard = { signal: params.signal, assertCurrent: params.commitGuard };
           await logWorktreeBase(repository.repoRoot, base, commit, {

@@ -5,6 +5,13 @@ import { createSubsystemLogger } from "../../logging/subsystem.js";
 
 type PreparationPhase =
   | "allocate"
+  | "repository"
+  | "source"
+  | "reserve"
+  | "base"
+  | "inspect"
+  | "provision"
+  | "publish"
   | "checkout"
   | "setup"
   | "templatePrepare"

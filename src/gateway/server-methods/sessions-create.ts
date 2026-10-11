@@ -35,7 +35,6 @@ import { loadGatewaySessionEntryReadOnly } from "../session-utils.js";
 import {
   prepareSessionWorktreeCreation,
   resolveSessionProjectRoot,
-  validateSessionWorktreeSelection,
 } from "../session-worktree-preparation.js";
 import { prepareSkillLibrarySessionCreation } from "../skill-library-session.js";
 import { gatewayClientUploadPolicyError } from "../upload-policy.js";
@@ -56,6 +55,7 @@ import {
   prepareSessionRepositoryWorkspace,
   resolveSessionRepositoryCreation,
   validateSessionProjectPreparation,
+  validateSessionWorktreeSelection,
 } from "./session-create-project.js";
 import {
   assertRequiredWorkerSessionCreateCurrent,
