@@ -169,7 +169,7 @@ describe("resident session rows", () => {
     });
   });
 
-  it("refreshes only the dirty identity without unrelated or main-thread reads", async () => {
+  it("refreshes only the dirty identity through bounded keyed readers, then reuses it without SQL", async () => {
     await withOpenClawTestState({ scenario: "minimal" }, async () => {
       const cfg = await seedSessions();
       const context = requestContext(cfg);
@@ -216,6 +216,7 @@ describe("resident session rows", () => {
         expect(
           projection.describe({ agentId: "work", key: "agent:work:active" })?.materialized,
         ).toBe(untouched.materialized);
+        expect(workerKeys).toHaveBeenCalled();
         for (const [keys] of workerKeys.mock.calls) {
           expect(keys).toEqual([key]);
         }
