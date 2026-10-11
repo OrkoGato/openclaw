@@ -1,0 +1,79 @@
+name: P42 iOS Sideload IPA
+
+# Builds an unsigned OpenClaw iOS IPA for sideloading via SideStore/AltStore.
+# No Apple Developer Program membership required — AltSign signs with a free
+# personal team on-device and strips paid-only entitlements.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode 26 toolchain
+        uses: maxim-lobanov/setup-xcode@d58261d64b9fdc674f7bb0b8b6be7df5bb3c6f57 # v1.6.0
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Node 24 + pnpm + deps
+        uses: ./.github/actions/setup-node-env
+        with:
+          node-version: "24.21.0"
+          install-bun: "false"
+          cache-mode: "off"
+
+      - name: Install pinned native tools (xcodegen, swiftformat, swiftlint)
+        run: |
+          set -euo pipefail
+          tools_dir="$RUNNER_TEMP/p42-ios-tools"
+          ./scripts/install-xcodegen.sh "$tools_dir"
+          ./scripts/install-swift-tools.sh "$tools_dir"
+          echo "$tools_dir" >> "$GITHUB_PATH"
+
+      - name: Install Watch Rust toolchain
+        run: |
+          set -euo pipefail
+          toolchain="$(awk -F '"' '/^channel =/ { print $2; exit }' apps/shared/OpenClawWatchRTC/rust-toolchain.toml)"
+          test -n "$toolchain"
+          rustup toolchain install "$toolchain" --profile minimal --component rust-src
+
+      - name: Generate Xcode project (signing config, version, filelists, xcodegen)
+        run: pnpm ios:gen
+
+      - name: Build unsigned device IPA payload
+        run: |
+          set -euo pipefail
+          cd apps/ios
+          xcodebuild \
+            -project OpenClaw.xcodeproj \
+            -scheme OpenClaw \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          app=$(find "$RUNNER_TEMP/derived/Build/Products" -name "OpenClaw.app" -type d | head -1)
+          test -d "$app"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$app" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qr "$RUNNER_TEMP/OpenClaw.ipa" Payload)
+          cp "$RUNNER_TEMP/OpenClaw.ipa" OpenClaw.ipa
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: OpenClaw-ipa
+          path: OpenClaw.ipa
+          if-no-files-found: error
+          retention-days: 30
