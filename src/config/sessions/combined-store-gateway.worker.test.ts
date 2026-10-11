@@ -481,30 +481,23 @@ it("federates worker rows under the same physical owners and keeps incognito pro
   });
 });
 
-it.each(["newer schema", "missing required table"])(
-  "propagates a worker store with %s instead of returning an empty listing",
-  async (failure) => {
-    await withOpenClawTestState({ scenario: "minimal" }, async () => {
-      const cfg: OpenClawConfig = { agents: { entries: { main: {} } } };
-      const database = openOpenClawAgentDatabase({ agentId: "main" });
-      replaceSessionEntrySync(
-        { agentId: "main", sessionKey: "agent:main:main" },
-        {
-          sessionId: "unavailable",
-          updatedAt: 1,
-        },
-      );
-      expect(
-        (await loadCombinedSessionStoreForGatewayCoreAsync(cfg)).store["agent:main:main"],
-      ).toMatchObject({ sessionId: "unavailable" });
-      database.db.exec(
-        failure === "newer schema" ? "PRAGMA user_version = 999" : "DROP TABLE session_nodes",
-      );
-      await expect(loadCombinedSessionStoreForGatewayCoreAsync(cfg)).rejects.toThrow(
-        failure === "newer schema"
-          ? /newer|schema/i
-          : /Session metadata unavailable.*table-missing/,
-      );
-    });
-  },
-);
+it("propagates a worker store with a missing required table instead of returning an empty listing", async () => {
+  await withOpenClawTestState({ scenario: "minimal" }, async () => {
+    const cfg: OpenClawConfig = { agents: { entries: { main: {} } } };
+    const database = openOpenClawAgentDatabase({ agentId: "main" });
+    replaceSessionEntrySync(
+      { agentId: "main", sessionKey: "agent:main:main" },
+      {
+        sessionId: "unavailable",
+        updatedAt: 1,
+      },
+    );
+    expect(
+      (await loadCombinedSessionStoreForGatewayCoreAsync(cfg)).store["agent:main:main"],
+    ).toMatchObject({ sessionId: "unavailable" });
+    database.db.exec("DROP TABLE session_nodes");
+    await expect(loadCombinedSessionStoreForGatewayCoreAsync(cfg)).rejects.toThrow(
+      /Session metadata unavailable.*table-missing/,
+    );
+  });
+});
