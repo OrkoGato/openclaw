@@ -6,7 +6,6 @@ import {
   sessionCreatorProfileId,
   type SessionCreatedActor as StoredSessionActor,
 } from "../config/sessions/session-entry-provenance.js";
-import { isSqliteCorruptionError } from "../infra/sqlite-error-diagnostics.js";
 import { assertExistingDatabaseIdentity } from "../infra/sqlite-worker-identity.js";
 import { redactToolPayloadText } from "../logging/redact.js";
 import {
@@ -15,10 +14,6 @@ import {
 } from "../state/openclaw-state-db-readonly.js";
 import { tableExists } from "../state/openclaw-state-db-schema-helpers.js";
 import { captureOpenClawStateReadWorkerContext } from "../state/openclaw-state-worker-context.js";
-import {
-  hydrateOpenClawStateWorkerError,
-  retainOpenClawStateWorkerErrorPayload,
-} from "../state/openclaw-state-worker-error.js";
 import type {
   UserProfileCatalogIdentityInput,
   UserProfileCatalogIdentityRead,
@@ -56,9 +51,7 @@ async function prepareIdentityFacts(input: UserProfileCatalogIdentityInput) {
   };
   const isCurrent = authority.bind([
     ...result.profiles.keys(),
-    ...[...result.profiles.values()].flatMap((profile) =>
-      profile.ok ? [profile.facts.profileId] : [],
-    ),
+    ...[...result.profiles.values()].map((profile) => profile.facts.profileId),
   ]);
   const assertCurrent = () => {
     if (identity.key.startsWith("file:")) {
@@ -81,11 +74,6 @@ async function prepareIdentityFacts(input: UserProfileCatalogIdentityInput) {
     readProfile(id: string) {
       assertCurrent();
       const profile = result.profiles.get(id);
-      if (profile && !profile.ok) {
-        const error = new Error(profile.message);
-        retainOpenClawStateWorkerErrorPayload(error, profile.error);
-        throw hydrateOpenClawStateWorkerError(error, { includeOrdinary: true });
-      }
       return profile?.facts ?? { profileId: id, profile: undefined, github: undefined };
     },
   };
@@ -211,29 +199,19 @@ export function createSessionCatalogSourceActorProjector(
     ),
   ];
   let facts: Map<string, ReturnType<typeof readSourceProfileFacts>> | undefined;
-  let attempted = false;
   return (actor) =>
     projectSourceActor({ ...params, actor }, (requestedId) => {
-      if (!attempted) {
-        attempted = true;
-        try {
-          const profiles = getUserProfileDisplays(ids);
-          const canonicalIds = [...new Set(ids.map((id) => profiles.get(id)?.id ?? id))];
-          const identities = verifiedGitHubIdentities(canonicalIds);
-          facts = new Map(
-            ids.map((id) => {
-              const profile = profiles.get(id);
-              const profileId = profile?.id ?? id;
-              return [id, { profileId, profile, github: identities?.get(profileId)?.primary }];
-            }),
-          );
-        } catch (error) {
-          // Corruption has already reached the database lifecycle owner; never retry a poisoned read.
-          if (isSqliteCorruptionError(error)) {
-            throw error;
-          }
-          // Nonterminal conversion/parse failures replay in the original scalar and actor-label order.
-        }
+      if (!facts) {
+        const profiles = getUserProfileDisplays(ids);
+        const canonicalIds = [...new Set(ids.map((id) => profiles.get(id)?.id ?? id))];
+        const identities = verifiedGitHubIdentities(canonicalIds);
+        facts = new Map(
+          ids.map((id) => {
+            const profile = profiles.get(id);
+            const profileId = profile?.id ?? id;
+            return [id, { profileId, profile, github: identities?.get(profileId)?.primary }];
+          }),
+        );
       }
       return facts?.get(requestedId) ?? readSourceProfileFacts(requestedId);
     });
