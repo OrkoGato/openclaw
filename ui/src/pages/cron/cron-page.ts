@@ -57,7 +57,7 @@ import {
   resolveConversationTargetSuggestions,
   THINKING_SUGGESTIONS,
 } from "./form-suggestions.ts";
-import { resolveCronRouteData } from "./route-model.ts";
+import { CronRouteSelection, resolveCronRouteData } from "./route-model.ts";
 import { CronRunTranscript } from "./run-transcript.ts";
 import type { CronDetailTab, CronListTab } from "./view-types.ts";
 import { renderCron } from "./view.ts";
@@ -92,8 +92,7 @@ class CronPage extends OpenClawLightDomElement {
         }
       : null;
   });
-  private pendingRouteData: ReturnType<typeof resolveCronRouteData> | null = null;
-  private routeJobRequested = false;
+  private readonly routeSelection = new CronRouteSelection();
   private highlightedRunId: string | null = null;
   private pendingRunScroll = false;
   private modelSuggestionsRequest: { state: CronState; agentId: string } | null = null;
@@ -110,8 +109,11 @@ class CronPage extends OpenClawLightDomElement {
     getGateway: () => this.context?.gateway,
     invalidateRequests: (change) => this.resetGatewayState(change.snapshot),
     onSnapshot: (change) => {
-      if (change.initial) {
+      if (this.routeSelection.bind(this.context.gateway) || change.initial) {
         this.resetGatewayState(change.snapshot);
+        if (!change.initial) {
+          this.ensureInitialData();
+        }
       } else if (!readGatewayOperatorAccess(change.snapshot).canAdmin) {
         this.clearHeartbeatScratch();
         this.deliveryDirectory.clear();
@@ -146,7 +148,7 @@ class CronPage extends OpenClawLightDomElement {
       this.requestUpdate();
       return;
     }
-    this.pendingRouteData = null;
+    this.routeSelection.target = null;
     // Replace the mutable request state so responses started for the old
     // scope cannot populate the newly selected agent's page.
     this.resetGatewayState(this.context.gateway.snapshot);
@@ -213,7 +215,7 @@ class CronPage extends OpenClawLightDomElement {
     this.cron = cron;
     const routeData = resolveCronRouteData(this.routeSearch);
     cron.cronSessionFilter = routeData.session;
-    this.routeJobRequested = false;
+    this.routeSelection.requested = false;
     this.pageHidden = document.visibilityState === "hidden";
     this.cron.cronAgentId = this.context.agentSelection.state.scopeId;
     this.agentsList = connected ? this.context.agents.state.agentsList : null;
@@ -269,8 +271,8 @@ class CronPage extends OpenClawLightDomElement {
       }
       this.listTab = "tasks";
       this.detailTab = "settings";
-      this.pendingRouteData = routeData.jobId || routeData.session ? routeData : null;
-      this.routeJobRequested = false;
+      this.routeSelection.target = routeData.jobId || routeData.session ? routeData : null;
+      this.routeSelection.requested = false;
       this.highlightedRunId = null;
       this.pendingRunScroll = false;
     }
@@ -291,33 +293,27 @@ class CronPage extends OpenClawLightDomElement {
   }
 
   override updated() {
-    const routeData = this.pendingRouteData;
-    const client = this.cron.client;
+    const routeData = this.routeSelection.target;
     if (routeData?.session && this.cron.cronJobsSnapshotRevision && !this.cron.cronLoading) {
-      this.pendingRouteData = null;
+      this.routeSelection.target = null;
       const [job] = this.cron.cronJobs;
       if (this.cron.cronJobsTotal === 1 && job) {
         this.selectJob(job);
       }
     }
-    if (routeData?.jobId && client && this.cron.connected && !this.routeJobRequested) {
-      this.routeJobRequested = true;
-      void this.runCronTask(async (current) => {
-        const isCurrent = () =>
-          this.isConnected && this.cron === current && this.pendingRouteData === routeData;
-        try {
-          // Links identify an exact job; a filtered inventory page cannot resolve them.
-          const job = await client.request<CronJob>("cron.get", { id: routeData.jobId });
-          if (isCurrent()) {
-            this.selectJob(job, routeData.runId);
-          }
-        } catch (error) {
-          if (isCurrent()) {
-            this.pendingRouteData = null;
-            current.cronError = formatUiError(error);
-          }
-        }
-      });
+    if (
+      routeData?.jobId &&
+      this.cron.connected &&
+      this.cron.client &&
+      !this.routeSelection.requested
+    ) {
+      void this.runCronTask((current) =>
+        this.routeSelection.resolve(
+          current,
+          () => this.isConnected && this.cron === current,
+          (job, runId) => this.selectJob(job, runId),
+        ),
+      );
     }
     if (this.pendingRunScroll) {
       const run = this.querySelector<HTMLElement>(".cron-run-entry--highlighted");
@@ -424,7 +420,7 @@ class CronPage extends OpenClawLightDomElement {
 
   private selectJob(job: CronJob, runId: string | null = null) {
     this.clearHeartbeatScratch();
-    this.pendingRouteData = null;
+    this.routeSelection.select(job.id, runId);
     this.highlightedRunId = runId;
     this.pendingRunScroll = Boolean(runId);
     if (runId) {
@@ -489,7 +485,7 @@ class CronPage extends OpenClawLightDomElement {
 
   private resetEditor(createOpen: boolean) {
     this.clearHeartbeatScratch();
-    this.pendingRouteData = null;
+    this.routeSelection.target = null;
     // Retire the outgoing editor's discovery before resetting its form so
     // late saves, deletions, and directory failures cannot affect its successor.
     this.deliveryDirectory.retireEditor();
@@ -514,7 +510,7 @@ class CronPage extends OpenClawLightDomElement {
       return;
     }
     this.clearHeartbeatScratch();
-    this.pendingRouteData = null;
+    this.routeSelection.target = null;
     // A clone is a prefilled create: the editor submits cron.add, not update.
     startCronClone(this.cron, job);
     this.cron.cronCreateOpen = true;
@@ -575,6 +571,9 @@ class CronPage extends OpenClawLightDomElement {
       // check and publishes onto the overview, where the page error suppresses
       // the starter automations, and an already-published error survives too.
       if (editorOwnedDiscovery && current.cronEditingJob?.id !== selectedJobId) {
+        if (current === this.cron && this.routeSelection.target?.jobId === selectedJobId) {
+          this.routeSelection.target = null;
+        }
         this.deliveryDirectory.retireExitedEditor(current, connectionScope, editorGeneration);
       }
       // Removing the selected task drops the panel back to overview;
