@@ -74,6 +74,8 @@ targets:
         buildPhase: resources
       - path: Resources/Localizable.xcstrings
         buildPhase: resources
+      - path: Resources/P42Config.plist
+        buildPhase: resources
     dependencies:
       - target: OpenClawShareExtension
         embed: true

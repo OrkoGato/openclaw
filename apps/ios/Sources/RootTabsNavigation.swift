@@ -27,6 +27,7 @@ extension RootTabs {
         case instances
         case sessions
         case files
+        case myFiles
         case dreaming
         case usage
         case cron
@@ -51,6 +52,7 @@ extension RootTabs {
             case .instances: String(localized: "Instances")
             case .sessions: String(localized: "Sessions")
             case .files: String(localized: "Files")
+            case .myFiles: String(localized: "My Files")
             case .dreaming: String(localized: "Dreaming")
             case .usage: String(localized: "Usage")
             case .cron: String(localized: "Automations")
@@ -80,6 +82,7 @@ extension RootTabs {
             case .instances: "dot.radiowaves.left.and.right"
             case .sessions: "doc.text"
             case .files: "folder.fill"
+            case .myFiles: "tray.full.fill"
             case .dreaming: "moon.stars"
             case .usage: "chart.bar.xaxis"
             case .cron: "timer"
@@ -105,6 +108,7 @@ extension RootTabs {
             case .agents: .agents
             case .sessions: .sessions
             case .files: .files
+            case .myFiles: .myFiles
             case .desktop: .desktop
             case .terminal: .terminal
             case .docs: .docs
@@ -120,7 +124,7 @@ extension RootTabs {
 
     enum SidebarScreen: Equatable {
         case dashboard(String)
-        case chat, overview, agents, sessions, files, desktop, terminal, docs, settings, gateway
+        case chat, overview, agents, sessions, files, myFiles, desktop, terminal, docs, settings, gateway
     }
 
     static func notificationSettingsPath(servingEnabled: Bool, disclosureAccepted: Bool) -> String {
@@ -274,6 +278,7 @@ extension RootTabs {
         .agents,
         .instances,
         .files,
+        .myFiles,
         .dreaming,
         .desktop,
         .terminal,

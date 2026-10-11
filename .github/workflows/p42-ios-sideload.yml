@@ -44,6 +44,13 @@ jobs:
           test -n "$toolchain"
           rustup toolchain install "$toolchain" --profile minimal --component rust-src
 
+      - name: Inject P42 files endpoint URL (secret)
+        env:
+          P42_FILES_URL: ${{ secrets.P42_FILES_URL }}
+        run: |
+          set -euo pipefail
+          /usr/libexec/PlistBuddy -c "Set :filesURL $P42_FILES_URL" apps/ios/Resources/P42Config.plist
+
       - name: Generate Xcode project (signing config, version, filelists, xcodegen)
         run: pnpm ios:gen
 
@@ -61,19 +68,34 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build
 
-      - name: Package IPA
+      - name: Package IPAs (full + lite for free signing)
         run: |
           set -euo pipefail
           app=$(find "$RUNNER_TEMP/derived/Build/Products" -name "OpenClaw.app" -type d | head -1)
           test -d "$app"
-          mkdir -p "$RUNNER_TEMP/ipa/Payload"
-          cp -R "$app" "$RUNNER_TEMP/ipa/Payload/"
-          (cd "$RUNNER_TEMP/ipa" && zip -qr "$RUNNER_TEMP/OpenClaw.ipa" Payload)
+
+          # Full IPA (watch + extensions — needs a paid developer account)
+          mkdir -p "$RUNNER_TEMP/ipa-full/Payload"
+          cp -R "$app" "$RUNNER_TEMP/ipa-full/Payload/"
+          (cd "$RUNNER_TEMP/ipa-full" && zip -qr "$RUNNER_TEMP/OpenClaw.ipa" Payload)
           cp "$RUNNER_TEMP/OpenClaw.ipa" OpenClaw.ipa
+
+          # Lite IPA — free accounts cap at 3 App IDs; strip the watch app
+          # and embedded extensions so signing succeeds.
+          mkdir -p "$RUNNER_TEMP/ipa-lite/Payload"
+          cp -R "$app" "$RUNNER_TEMP/ipa-lite/Payload/"
+          rm -rf "$RUNNER_TEMP/ipa-lite/Payload/OpenClaw.app/Watch" \
+                 "$RUNNER_TEMP/ipa-lite/Payload/OpenClaw.app/PlugIns"
+          /usr/libexec/PlistBuddy -c "Delete :WKCompanionAppBundleIdentifier" \
+            "$RUNNER_TEMP/ipa-lite/Payload/OpenClaw.app/Info.plist" || true
+          (cd "$RUNNER_TEMP/ipa-lite" && zip -qr "$RUNNER_TEMP/OpenClaw-lite.ipa" Payload)
+          cp "$RUNNER_TEMP/OpenClaw-lite.ipa" OpenClaw-lite.ipa
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: OpenClaw-ipa
-          path: OpenClaw.ipa
+          path: |
+            OpenClaw.ipa
+            OpenClaw-lite.ipa
           if-no-files-found: error
           retention-days: 30

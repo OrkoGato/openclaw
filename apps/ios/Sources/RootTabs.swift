@@ -330,6 +330,8 @@ struct RootTabs: View {
                 headerSidebarAction: self.sidebarHeaderAction,
                 openSettings: { self.selectSidebarDestination(.gateway) })
                 .id(self.selectedSidebarDestination.id)
+        case .myFiles:
+            MyFilesScreen(headerSidebarAction: self.sidebarHeaderAction)
         case .desktop:
             ControlUIHubScreen(
                 page: .desktop(source: nil, session: nil),
