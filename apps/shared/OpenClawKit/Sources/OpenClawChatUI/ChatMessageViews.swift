@@ -132,7 +132,7 @@ struct ChatAgentAvatar: View {
                         LinearGradient(
                             colors: [
                                 (self.tint ?? OpenClawChatTheme.accent).opacity(0.95),
-                                Color(red: 38 / 255.0, green: 40 / 255.0, blue: 43 / 255.0),
+                                Color(red: 10 / 255.0, green: 20 / 255.0, blue: 36 / 255.0),
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing)))

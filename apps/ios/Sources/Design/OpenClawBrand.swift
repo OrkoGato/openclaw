@@ -60,18 +60,18 @@ final class AppAppearanceModel {
 enum OpenClawBrand {
     // Carapace semantic palette: these tokens are shared by voice surfaces that
     // need the web system's quieter ink/paper hierarchy in native SwiftUI.
-    static let carapaceElevated = Color(red: 32 / 255.0, green: 32 / 255.0, blue: 36 / 255.0)
-    static let carapaceCoral = Color(red: 245 / 255.0, green: 101 / 255.0, blue: 74 / 255.0)
-    static let carapaceSea = Color(red: 79 / 255.0, green: 200 / 255.0, blue: 174 / 255.0)
+    static let carapaceElevated = Color(red: 14 / 255.0, green: 24 / 255.0, blue: 40 / 255.0)
+    static let carapaceCoral = Color(red: 0 / 255.0, green: 229 / 255.0, blue: 255 / 255.0)
+    static let carapaceSea = Color(red: 79 / 255.0, green: 200 / 255.0, blue: 230 / 255.0)
     // Accent fills stay dark enough for white content; foreground accents adapt
     // separately so small labels retain 4.5:1 contrast on dark surfaces and tinted pills.
-    static let uiAccentFill = adaptiveUIColor(light: (183, 56, 51), dark: (198, 62, 56))
-    static let uiAccent = adaptiveUIColor(light: (183, 56, 51), dark: (255, 107, 102))
-    static let uiAccentHot = adaptiveUIColor(light: (204, 75, 69), dark: (232, 92, 86))
-    static let uiAccentHotForeground = adaptiveUIColor(light: (166, 55, 50), dark: (255, 123, 115))
-    static let uiVoid = adaptiveUIColor(light: (246, 247, 249), dark: (11, 12, 17))
-    static let uiObsidian = adaptiveUIColor(light: (255, 255, 255), dark: (19, 21, 28))
-    static let uiTextSecondary = adaptiveUIColor(light: (90, 94, 110), dark: (168, 170, 191))
+    static let uiAccentFill = adaptiveUIColor(light: (0, 118, 160), dark: (0, 110, 150))
+    static let uiAccent = adaptiveUIColor(light: (0, 118, 160), dark: (64, 220, 255))
+    static let uiAccentHot = adaptiveUIColor(light: (0, 140, 185), dark: (120, 235, 255))
+    static let uiAccentHotForeground = adaptiveUIColor(light: (0, 100, 140), dark: (150, 242, 255))
+    static let uiVoid = adaptiveUIColor(light: (246, 247, 249), dark: (3, 8, 18))
+    static let uiObsidian = adaptiveUIColor(light: (255, 255, 255), dark: (8, 16, 30))
+    static let uiTextSecondary = adaptiveUIColor(light: (90, 94, 110), dark: (150, 175, 210))
     static let uiOK = adaptiveUIColor(light: (19, 122, 62), dark: (48, 209, 88))
     static let uiWarn = adaptiveUIColor(light: (154, 87, 0), dark: (255, 214, 10))
     static let uiDanger = adaptiveUIColor(light: (185, 28, 28), dark: (252, 165, 165))
@@ -100,25 +100,25 @@ enum OpenClawBrand {
     static let providerOpenAI = Color(red: 16 / 255.0, green: 163 / 255.0, blue: 127 / 255.0)
     static let providerAnthropic = Color(red: 217 / 255.0, green: 119 / 255.0, blue: 87 / 255.0)
     static let providerGoogle = Color(red: 66 / 255.0, green: 133 / 255.0, blue: 244 / 255.0)
-    static let activationCanvas = Color(uiColor: adaptiveUIColor(light: (255, 255, 255), dark: (18, 14, 15)))
-    static let activationSurface = Color(uiColor: adaptiveUIColor(light: (255, 253, 252), dark: (33, 29, 30)))
-    static let activationInsetSurface = Color(uiColor: adaptiveUIColor(light: (246, 241, 238), dark: (44, 37, 38)))
-    static let activationNeutralSurface = Color(uiColor: adaptiveUIColor(light: (242, 242, 247), dark: (34, 34, 37)))
+    static let activationCanvas = Color(uiColor: adaptiveUIColor(light: (255, 255, 255), dark: (4, 10, 22)))
+    static let activationSurface = Color(uiColor: adaptiveUIColor(light: (255, 253, 252), dark: (10, 20, 36)))
+    static let activationInsetSurface = Color(uiColor: adaptiveUIColor(light: (246, 241, 238), dark: (16, 28, 48)))
+    static let activationNeutralSurface = Color(uiColor: adaptiveUIColor(light: (242, 242, 247), dark: (14, 24, 40)))
     static let activationNeutralInsetSurface = Color(uiColor: adaptiveUIColor(
         light: (247, 247, 249),
-        dark: (42, 42, 45)))
+        dark: (20, 32, 52)))
     static let activationNeutralStroke = Color(uiColor: adaptiveUIColor(
         light: (0, 0, 0),
         dark: (255, 255, 255)).withAlphaComponent(0.08))
     static let activationNeutralDivider = Color(uiColor: adaptiveUIColor(
         light: (0, 0, 0),
         dark: (255, 255, 255)).withAlphaComponent(0.09))
-    static let activationPrimaryAction = Color(uiColor: adaptiveUIColor(light: (209, 54, 51), dark: (238, 82, 76)))
+    static let activationPrimaryAction = Color(uiColor: adaptiveUIColor(light: (0, 125, 168), dark: (0, 160, 205)))
     static let activationPrimaryActionText = Color.white
     static let activationHairline = Color(uiColor: adaptiveUIColor(
-        light: (136, 44, 40),
-        dark: (255, 210, 205)).withAlphaComponent(0.13))
-    static let activationGlow = Color(uiColor: adaptiveUIColor(light: (228, 78, 67), dark: (255, 111, 96)))
+        light: (90, 160, 190),
+        dark: (150, 230, 255)).withAlphaComponent(0.13))
+    static let activationGlow = Color(uiColor: adaptiveUIColor(light: (0, 160, 205), dark: (0, 215, 255)))
 
     static var sheetBackground: LinearGradient {
         LinearGradient(
@@ -165,10 +165,10 @@ enum OpenClawBrand {
     static var activationPrimaryGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(red: 1.0, green: 0.42, blue: 0.34),
+                Color(red: 0.1, green: 0.78, blue: 1.0),
                 activationGlow,
                 activationPrimaryAction,
-                Color(red: 0.66, green: 0.12, blue: 0.12),
+                Color(red: 0.0, green: 0.36, blue: 0.52),
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing)

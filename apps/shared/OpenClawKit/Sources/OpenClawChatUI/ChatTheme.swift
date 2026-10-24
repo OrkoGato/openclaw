@@ -65,14 +65,14 @@ public enum OpenClawChatTheme {
         static let lightCanvasTop = UIColor(red: 246 / 255.0, green: 247 / 255.0, blue: 249 / 255.0, alpha: 1)
         static let lightCanvasMiddle = UIColor(red: 250 / 255.0, green: 251 / 255.0, blue: 252 / 255.0, alpha: 1)
         static let lightCanvasBottom = UIColor.white
-        static let lightAccent = UIColor(red: 220 / 255.0, green: 38 / 255.0, blue: 38 / 255.0, alpha: 1)
-        static let darkCanvasTop = UIColor(red: 12 / 255.0, green: 13 / 255.0, blue: 15 / 255.0, alpha: 1)
-        static let darkCanvasMiddle = UIColor(red: 7 / 255.0, green: 8 / 255.0, blue: 10 / 255.0, alpha: 1)
-        static let darkCanvasBottom = UIColor(red: 4 / 255.0, green: 5 / 255.0, blue: 6 / 255.0, alpha: 1)
-        static let darkPanel = UIColor(red: 10 / 255.0, green: 12 / 255.0, blue: 14 / 255.0, alpha: 1)
-        static let darkPanelRaised = UIColor(red: 17 / 255.0, green: 18 / 255.0, blue: 21 / 255.0, alpha: 1)
-        static let darkComposer = UIColor(red: 24 / 255.0, green: 25 / 255.0, blue: 28 / 255.0, alpha: 1)
-        static let darkAccent = UIColor(red: 198 / 255.0, green: 49 / 255.0, blue: 42 / 255.0, alpha: 1)
+        static let lightAccent = UIColor(red: 0 / 255.0, green: 125 / 255.0, blue: 168 / 255.0, alpha: 1)
+        static let darkCanvasTop = UIColor(red: 4 / 255.0, green: 10 / 255.0, blue: 22 / 255.0, alpha: 1)
+        static let darkCanvasMiddle = UIColor(red: 2 / 255.0, green: 6 / 255.0, blue: 16 / 255.0, alpha: 1)
+        static let darkCanvasBottom = UIColor(red: 1 / 255.0, green: 3 / 255.0, blue: 10 / 255.0, alpha: 1)
+        static let darkPanel = UIColor(red: 6 / 255.0, green: 13 / 255.0, blue: 26 / 255.0, alpha: 1)
+        static let darkPanelRaised = UIColor(red: 12 / 255.0, green: 21 / 255.0, blue: 40 / 255.0, alpha: 1)
+        static let darkComposer = UIColor(red: 16 / 255.0, green: 27 / 255.0, blue: 46 / 255.0, alpha: 1)
+        static let darkAccent = UIColor(red: 0 / 255.0, green: 110 / 255.0, blue: 150 / 255.0, alpha: 1)
     }
 
     private static func adaptiveColor(

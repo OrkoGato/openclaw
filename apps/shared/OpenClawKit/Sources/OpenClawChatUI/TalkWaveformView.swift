@@ -42,9 +42,9 @@ public struct TalkWaveformPalette: Equatable, Sendable {
 
     public static let standard = TalkWaveformPalette(
         active: [
-            Color(red: 198 / 255.0, green: 62 / 255.0, blue: 56 / 255.0),
-            Color(red: 79 / 255.0, green: 200 / 255.0, blue: 174 / 255.0),
-            Color(red: 0.45, green: 0.08, blue: 0.12),
+            Color(red: 0 / 255.0, green: 229 / 255.0, blue: 255 / 255.0),
+            Color(red: 79 / 255.0, green: 200 / 255.0, blue: 230 / 255.0),
+            Color(red: 0.0, green: 0.43, blue: 0.59),
         ],
         inactive: [
             Color(white: 0.62),
