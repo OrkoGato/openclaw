@@ -406,6 +406,22 @@ extension ChatMessageBubble {
         let hasOnboardingShadow = self.style == .onboarding && !self.isUser
 
         VStack(alignment: .leading, spacing: 6) {
+            if let thinking = self.thinkingText {
+                self.thinkingContent(text: thinking, textColor: textColor)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(AnyShapeStyle(OpenClawChatTheme.assistantBubble))
+                    .clipShape(RoundedRectangle(
+                        cornerRadius: ChatUIConstants.bubbleCorner,
+                        style: .continuous))
+                    .overlay(RoundedRectangle(
+                        cornerRadius: ChatUIConstants.bubbleCorner,
+                        style: .continuous)
+                        .strokeBorder(
+                            Color.white.opacity(0.08),
+                            style: StrokeStyle(lineWidth: 0.5, lineJoin: .round)))
+            }
+
             if shouldRenderBubble {
                 if self.usesBubble {
                     self.messageContent(text: text, textColor: textColor)
@@ -632,7 +648,34 @@ extension ChatMessageBubble {
     private var primaryText: String {
         ChatMessageVisibleText.displayText(
             in: self.message,
-            includeThinking: self.displayOptions.contains(.reasoning))
+            includeThinking: false)
+    }
+
+    private var thinkingText: String? {
+        guard self.displayOptions.contains(.reasoning), !self.isUser else { return nil }
+        let parts = self.message.content.compactMap { content -> String? in
+            guard content.type?.lowercased() == "thinking",
+                  let thinking = content.thinking,
+                  !thinking.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { return nil }
+            return thinking.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n\n")
+    }
+
+    private func thinkingContent(text: String, textColor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(String(localized: "Reasoning"))
+                .font(OpenClawChatTypography.caption)
+                .foregroundStyle(.secondary)
+            ChatMarkdownRenderer(
+                text: text,
+                context: .assistant,
+                variant: self.markdownVariant,
+                typography: .thinking,
+                textColor: textColor,
+                isComplete: true)
+        }
     }
 
     private var inlineAttachments: [OpenClawChatMessageContent] {
